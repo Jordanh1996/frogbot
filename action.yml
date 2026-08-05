@@ -31,7 +31,8 @@ runs:
         JF_GIT_BASE_BRANCH: ${{ github.ref }}
         JF_GIT_API_ENDPOINT: ${{ github.api_url }}
         JF_GIT_SERVER_URL: ${{ github.server_url }}
-      run: "${{ runner.temp }}/frogbot-patched" ${{ inputs.command }}
+      run: |
+        "${{ runner.temp }}/frogbot-patched" ${{ inputs.command }}
 branding:
   icon: "terminal"
   color: "green"
