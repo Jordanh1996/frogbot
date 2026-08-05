@@ -16,9 +16,10 @@ runs:
 
     - name: Build patched Frogbot
       shell: bash
+      working-directory: ${{ github.action_path }}
       run: |
-        go build -ldflags "-X github.com/jfrog/frogbot/v3/utils.FrogbotVersion=${{ github.action_ref }}" \
-          -o "${{ runner.temp }}/frogbot-patched" "${{ github.action_path }}"
+        go build -ldflags "-X github.com/jfrog/frogbot/v3/utils.FrogbotVersion=v3-xray-157176-patched" \
+          -o "${{ runner.temp }}/frogbot-patched" .
         "${{ runner.temp }}/frogbot-patched" --version
 
     - name: Run patched Frogbot
