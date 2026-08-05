@@ -141,3 +141,5 @@ require (
 // replace github.com/jfrog/jfrog-client-go => github.com/jfrog/jfrog-client-go master
 
 // replace github.com/jfrog/froggit-go => github.com/jfrog/froggit-go master
+
+replace github.com/jfrog/jfrog-cli-security => github.com/Jordanh1996/jfrog-cli-security v1.31.2-0.20260805072049-bf91ea0cb892

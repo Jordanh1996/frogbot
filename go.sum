@@ -6,6 +6,8 @@ github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk
 github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/CycloneDX/cyclonedx-go v0.10.0 h1:7xyklU7YD+CUyGzSFIARG18NYLsKVn4QFg04qSsu+7Y=
 github.com/CycloneDX/cyclonedx-go v0.10.0/go.mod h1:vUvbCXQsEm48OI6oOlanxstwNByXjCZ2wuleUlwGEO8=
+github.com/Jordanh1996/jfrog-cli-security v1.31.2-0.20260805072049-bf91ea0cb892 h1:OHXcie6l20400wdE+ZnLu7eL/cwu3ecYbljQXETwcj0=
+github.com/Jordanh1996/jfrog-cli-security v1.31.2-0.20260805072049-bf91ea0cb892/go.mod h1:BKhIR0RkW0KMIdAeJbufG4rl44wZbpn+5bfE2jEN338=
 github.com/Microsoft/go-winio v0.5.2/go.mod h1:WpS1mjBmmwHBEWmogvA2mj8546UReBk4v8QkMxJ6pZY=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
@@ -154,8 +156,6 @@ github.com/jfrog/jfrog-cli-artifactory v0.8.1-0.20260803134309-cea6be60a1f2 h1:I
 github.com/jfrog/jfrog-cli-artifactory v0.8.1-0.20260803134309-cea6be60a1f2/go.mod h1:1vxzqW7jHBSuTNqO2vxEnhbniwq4dj5wveDuCMJX7Yo=
 github.com/jfrog/jfrog-cli-core/v2 v2.60.1-0.20260728123939-34b27f070f2e h1:K0IK3w5a5h6SIi9yoOJ6a7DL+kuFjs5acypOxKyT2OM=
 github.com/jfrog/jfrog-cli-core/v2 v2.60.1-0.20260728123939-34b27f070f2e/go.mod h1:MygQx8pekgPCXyXnejIAVG9S4ImGcDFmcfRPUug/0d0=
-github.com/jfrog/jfrog-cli-security v1.32.1 h1:GQ89waCbRZSL6fEpFwGWpIeiy2c8SNUTzccyec2QC1Y=
-github.com/jfrog/jfrog-cli-security v1.32.1/go.mod h1:BKhIR0RkW0KMIdAeJbufG4rl44wZbpn+5bfE2jEN338=
 github.com/jfrog/jfrog-client-go v1.55.1-0.20260803094922-a87c05639195 h1:1h6qSM8fanMsy9xT7zrRn/lrAMclzQzT5OJt4a9X4Qo=
 github.com/jfrog/jfrog-client-go v1.55.1-0.20260803094922-a87c05639195/go.mod h1:FHpjN1nTDoj96xd6obe27EOgGErqzU0rQgC96L3Ch9E=
 github.com/jhump/protoreflect v1.15.1 h1:HUMERORf3I3ZdX05WaQ6MIpd/NJ434hTp5YiKgfCL6c=

@@ -1,20 +1,37 @@
-name: "Frogbot by JFrog"
-description: "JFrog Frogbot is a Git bot that scans your pull requests and repositories for security vulnerabilities."
+name: "Frogbot (XRAY-157176 patched build)"
+description: "Builds Frogbot from this branch, which links the XRAY-157176 SAST differential-scan fix, and runs it instead of a released binary."
 author: "JFrog"
 inputs:
-  version:
-    description: "Frogbot version"
-    default: "latest"
-    required: false
-  oidc-provider-name:
-    description: "Provider Name's value that was set in OpenId Connect integration in the JFrog platform."
-    required: false
-  oidc-audience:
-    description: "By default, this is the URL of the GitHub repository owner, such as the organization that owns the repository."
+  command:
+    description: "Frogbot command to run: scan-pull-request or scan-repository."
+    default: "scan-pull-request"
     required: false
 runs:
-  using: "node24"
-  main: "action/lib/main.js"
+  using: "composite"
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: "${{ github.action_path }}/go.mod"
+        cache: false
+
+    - name: Build patched Frogbot
+      shell: bash
+      run: |
+        go build -ldflags "-X github.com/jfrog/frogbot/v3/utils.FrogbotVersion=${{ github.action_ref }}" \
+          -o "${{ runner.temp }}/frogbot-patched" "${{ github.action_path }}"
+        "${{ runner.temp }}/frogbot-patched" --version
+
+    - name: Run patched Frogbot
+      shell: bash
+      env:
+        JF_GIT_PROVIDER: github
+        JF_GIT_OWNER: ${{ github.repository_owner }}
+        JF_GIT_REPO: ${{ github.event.repository.name }}
+        JF_GIT_PULL_REQUEST_ID: ${{ github.event.number }}
+        JF_GIT_BASE_BRANCH: ${{ github.ref }}
+        JF_GIT_API_ENDPOINT: ${{ github.api_url }}
+        JF_GIT_SERVER_URL: ${{ github.server_url }}
+      run: "${{ runner.temp }}/frogbot-patched" ${{ inputs.command }}
 branding:
   icon: "terminal"
   color: "green"
