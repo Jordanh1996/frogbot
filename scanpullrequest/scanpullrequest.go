@@ -216,6 +216,20 @@ func verifyWorkflowContainsFrogbotEnvironment(client vcsclient.VcsClient) error 
 	return nil
 }
 
+func resolveTargetRef(scanDetails *utils.ScanDetails, target vcsclient.BranchInfo, sourceName string) string {
+	mergeBase, err := scanDetails.Client().GetMergeBase(context.Background(), target.Owner, target.Repository, target.Name, sourceName)
+	if err == nil {
+		log.Info(fmt.Sprintf("Comparing against merge base %s of %s and %s", mergeBase.Hash, target.Name, sourceName))
+		return mergeBase.Hash
+	}
+	if errors.Is(err, vcsclient.ErrMergeBaseUnsupported) {
+		log.Warn(fmt.Sprintf("Merge base resolution is not yet supported for this git provider. Scan results may include findings that were already fixed on %s. Rebasing %s onto %s avoids this.", target.Name, sourceName, target.Name))
+	} else {
+		log.Warn(fmt.Sprintf("Failed to resolve the merge base of %s and %s, scanning the tip of %s instead. Scan results may include findings that were already fixed on %s. Error: %s", target.Name, sourceName, target.Name, target.Name, err.Error()))
+	}
+	return target.Name
+}
+
 func downloadSourceAndTarget(repoConfig *utils.Repository, scanDetails *utils.ScanDetails) (sourceBranchWd, targetBranchWd string, cleanup func() error, err error) {
 	cleanupSource := func() error { return nil }
 	cleanupTarget := func() error { return nil }
@@ -231,7 +245,8 @@ func downloadSourceAndTarget(repoConfig *utils.Repository, scanDetails *utils.Sc
 		return
 	}
 	target := repoConfig.Params.Git.PullRequestDetails.Target
-	if targetBranchWd, cleanupTarget, err = utils.DownloadRepoToTempDir(scanDetails.Client(), target.Owner, target.Repository, target.Name); err != nil {
+	targetRef := resolveTargetRef(scanDetails, target, scanDetails.PullRequestDetails.Source.Name)
+	if targetBranchWd, cleanupTarget, err = utils.DownloadRepoToTempDir(scanDetails.Client(), target.Owner, target.Repository, targetRef); err != nil {
 		err = fmt.Errorf("failed to download target branch code. Error: %s", err.Error())
 		return
 	}

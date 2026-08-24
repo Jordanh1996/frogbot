@@ -38,6 +38,7 @@ import (
 	"github.com/jfrog/frogbot/v3/utils"
 	"github.com/jfrog/frogbot/v3/utils/issues"
 	"github.com/jfrog/frogbot/v3/utils/outputwriter"
+	"github.com/jfrog/jfrog-client-go/utils/log"
 )
 
 //go:generate go run github.com/golang/mock/mockgen@v1.6.0 -destination=../testdata/vcsclientmock.go -package=testdata github.com/jfrog/froggit-go/vcsclient VcsClient
@@ -1759,4 +1760,50 @@ func createSecurityCommandResultsForTest(targetLocation string, targetName strin
 	}
 
 	return result
+}
+
+func TestResolveTargetRefUsesMergeBase(t *testing.T) {
+	client := CreateMockVcsClient(t)
+	client.EXPECT().GetMergeBase(context.Background(), "owner", "repo", "master", "feature").
+		Return(vcsclient.CommitInfo{Hash: "abc123"}, nil)
+
+	scanDetails := utils.NewScanDetails(client, &coreconfig.ServerDetails{}, &utils.Git{})
+	target := vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"}
+
+	assert.Equal(t, "abc123", resolveTargetRef(scanDetails, target, "feature"))
+}
+
+func TestResolveTargetRefWarnsWhenProviderUnsupported(t *testing.T) {
+	originalLogger := log.GetLogger()
+	t.Cleanup(func() { log.SetLogger(originalLogger) })
+	var output bytes.Buffer
+	log.SetLogger(log.NewLogger(log.INFO, &output))
+
+	client := CreateMockVcsClient(t)
+	client.EXPECT().GetMergeBase(context.Background(), "owner", "repo", "master", "feature").
+		Return(vcsclient.CommitInfo{}, vcsclient.ErrMergeBaseUnsupported)
+
+	scanDetails := utils.NewScanDetails(client, &coreconfig.ServerDetails{}, &utils.Git{})
+	target := vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"}
+
+	assert.Equal(t, "master", resolveTargetRef(scanDetails, target, "feature"))
+	assert.Contains(t, output.String(), "not yet supported")
+	assert.Contains(t, output.String(), "Rebasing")
+}
+
+func TestResolveTargetRefWarnsOnApiFailure(t *testing.T) {
+	originalLogger := log.GetLogger()
+	t.Cleanup(func() { log.SetLogger(originalLogger) })
+	var output bytes.Buffer
+	log.SetLogger(log.NewLogger(log.INFO, &output))
+
+	client := CreateMockVcsClient(t)
+	client.EXPECT().GetMergeBase(context.Background(), "owner", "repo", "master", "feature").
+		Return(vcsclient.CommitInfo{}, errors.New("vcs api is down"))
+
+	scanDetails := utils.NewScanDetails(client, &coreconfig.ServerDetails{}, &utils.Git{})
+	target := vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"}
+
+	assert.Equal(t, "master", resolveTargetRef(scanDetails, target, "feature"))
+	assert.Contains(t, output.String(), "vcs api is down")
 }
