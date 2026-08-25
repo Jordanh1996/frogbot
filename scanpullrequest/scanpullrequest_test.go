@@ -1869,17 +1869,17 @@ func TestDownloadTargetRetriesAtBranchTipWhenMergeBaseDownloadFails(t *testing.T
 
 	const mergeBaseSha = "5d5479f857362d9eb668b6403631e57f0d3d3ba6"
 	var requested []string
-	download := func(_ vcsclient.VcsClient, _, _, ref string) (string, func() error, error) {
+	downloadCommit := func(_ vcsclient.VcsClient, _, _, ref string) (string, func() error, error) {
 		requested = append(requested, ref)
-		if ref == mergeBaseSha {
-			return "", nil, errors.New("404 Not Found")
-		}
-		dir := t.TempDir()
-		return dir, func() error { return nil }, nil
+		return "", nil, errors.New("404 Not Found")
+	}
+	downloadBranch := func(_ vcsclient.VcsClient, _, _, ref string) (string, func() error, error) {
+		requested = append(requested, ref)
+		return t.TempDir(), func() error { return nil }, nil
 	}
 	target := vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"}
 
-	wd, cleanup, err := downloadTargetAtRef(nil, target, mergeBaseSha, download)
+	wd, cleanup, err := downloadTargetAtRef(nil, target, mergeBaseSha, downloadCommit, downloadBranch)
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, wd)
@@ -1890,13 +1890,17 @@ func TestDownloadTargetRetriesAtBranchTipWhenMergeBaseDownloadFails(t *testing.T
 
 func TestDownloadTargetDoesNotRetryWhenAlreadyAtBranchTip(t *testing.T) {
 	var requested []string
-	download := func(_ vcsclient.VcsClient, _, _, ref string) (string, func() error, error) {
+	downloadCommit := func(_ vcsclient.VcsClient, _, _, ref string) (string, func() error, error) {
+		requested = append(requested, "commit:"+ref)
+		return "", nil, errors.New("should not be called")
+	}
+	downloadBranch := func(_ vcsclient.VcsClient, _, _, ref string) (string, func() error, error) {
 		requested = append(requested, ref)
 		return "", nil, errors.New("network is down")
 	}
 	target := vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"}
 
-	_, _, err := downloadTargetAtRef(nil, target, "master", download)
+	_, _, err := downloadTargetAtRef(nil, target, "master", downloadCommit, downloadBranch)
 
 	assert.Error(t, err)
 	assert.Equal(t, []string{"master"}, requested, "no pointless second attempt at the same ref")

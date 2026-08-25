@@ -241,13 +241,16 @@ func resolveTargetRef(scanDetails *utils.ScanDetails, target vcsclient.BranchInf
 
 type repoDownloader func(client vcsclient.VcsClient, owner, repository, ref string) (string, func() error, error)
 
-func downloadTargetAtRef(client vcsclient.VcsClient, target vcsclient.BranchInfo, ref string, download repoDownloader) (string, func() error, error) {
-	wd, cleanup, err := download(client, target.Owner, target.Repository, ref)
-	if err == nil || ref == target.Name {
-		return wd, cleanup, err
+func downloadTargetAtRef(client vcsclient.VcsClient, target vcsclient.BranchInfo, mergeBaseSha string, downloadCommit, downloadBranch repoDownloader) (string, func() error, error) {
+	if mergeBaseSha == target.Name {
+		return downloadBranch(client, target.Owner, target.Repository, target.Name)
 	}
-	log.Warn(fmt.Sprintf("Failed to download %s at merge base %s, scanning the tip of %s instead. Scan results may include findings that were already fixed on %s. Error: %s", target.Name, ref, target.Name, target.Name, err.Error()))
-	return download(client, target.Owner, target.Repository, target.Name)
+	wd, cleanup, err := downloadCommit(client, target.Owner, target.Repository, mergeBaseSha)
+	if err == nil {
+		return wd, cleanup, nil
+	}
+	log.Warn(fmt.Sprintf("Failed to download %s at merge base %s, scanning the tip of %s instead. Scan results may include findings that were already fixed on %s. Error: %s", target.Name, mergeBaseSha, target.Name, target.Name, err.Error()))
+	return downloadBranch(client, target.Owner, target.Repository, target.Name)
 }
 
 func downloadSourceAndTarget(repoConfig *utils.Repository, scanDetails *utils.ScanDetails) (sourceBranchWd, targetBranchWd string, cleanup func() error, err error) {
@@ -266,7 +269,7 @@ func downloadSourceAndTarget(repoConfig *utils.Repository, scanDetails *utils.Sc
 	}
 	target := repoConfig.Params.Git.PullRequestDetails.Target
 	targetRef := resolveTargetRef(scanDetails, target, scanDetails.PullRequestDetails.Source.Name)
-	if targetBranchWd, cleanupTarget, err = downloadTargetAtRef(scanDetails.Client(), target, targetRef, utils.DownloadRepoToTempDir); err != nil {
+	if targetBranchWd, cleanupTarget, err = downloadTargetAtRef(scanDetails.Client(), target, targetRef, utils.DownloadRepoCommitToTempDir, utils.DownloadRepoToTempDir); err != nil {
 		err = fmt.Errorf("failed to download target branch code. Error: %s", err.Error())
 		return
 	}
