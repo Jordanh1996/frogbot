@@ -217,10 +217,19 @@ func verifyWorkflowContainsFrogbotEnvironment(client vcsclient.VcsClient) error 
 }
 
 func resolveTargetRef(scanDetails *utils.ScanDetails, target vcsclient.BranchInfo, sourceName string) string {
+	source := scanDetails.PullRequestDetails.Source
+	if !strings.EqualFold(source.Owner, target.Owner) || !strings.EqualFold(source.Repository, target.Repository) {
+		log.Warn(fmt.Sprintf("The pull request comes from a fork, where the merge base cannot be resolved against %s/%s. Scan results may include findings that were already fixed on %s. Rebasing %s onto %s avoids this.", target.Owner, target.Repository, target.Name, sourceName, target.Name))
+		return target.Name
+	}
 	mergeBase, err := scanDetails.Client().GetMergeBase(context.Background(), target.Owner, target.Repository, target.Name, sourceName)
-	if err == nil {
+	if err == nil && mergeBase.Hash != "" {
 		log.Info(fmt.Sprintf("Comparing against merge base %s of %s and %s", mergeBase.Hash, target.Name, sourceName))
 		return mergeBase.Hash
+	}
+	if err == nil {
+		log.Warn(fmt.Sprintf("Resolving the merge base of %s and %s returned an empty commit, scanning the tip of %s instead. Scan results may include findings that were already fixed on %s.", target.Name, sourceName, target.Name, target.Name))
+		return target.Name
 	}
 	if errors.Is(err, vcsclient.ErrMergeBaseUnsupported) {
 		log.Warn(fmt.Sprintf("Merge base resolution is not yet supported for this git provider. Scan results may include findings that were already fixed on %s. Rebasing %s onto %s avoids this.", target.Name, sourceName, target.Name))

@@ -1768,6 +1768,10 @@ func TestResolveTargetRefUsesMergeBase(t *testing.T) {
 		Return(vcsclient.CommitInfo{Hash: "abc123"}, nil)
 
 	scanDetails := utils.NewScanDetails(client, &coreconfig.ServerDetails{}, &utils.Git{})
+	scanDetails.PullRequestDetails = vcsclient.PullRequestInfo{
+		Source: vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "feature"},
+		Target: vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"},
+	}
 	target := vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"}
 
 	assert.Equal(t, "abc123", resolveTargetRef(scanDetails, target, "feature"))
@@ -1784,6 +1788,10 @@ func TestResolveTargetRefWarnsWhenProviderUnsupported(t *testing.T) {
 		Return(vcsclient.CommitInfo{}, vcsclient.ErrMergeBaseUnsupported)
 
 	scanDetails := utils.NewScanDetails(client, &coreconfig.ServerDetails{}, &utils.Git{})
+	scanDetails.PullRequestDetails = vcsclient.PullRequestInfo{
+		Source: vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "feature"},
+		Target: vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"},
+	}
 	target := vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"}
 
 	assert.Equal(t, "master", resolveTargetRef(scanDetails, target, "feature"))
@@ -1802,8 +1810,53 @@ func TestResolveTargetRefWarnsOnApiFailure(t *testing.T) {
 		Return(vcsclient.CommitInfo{}, errors.New("vcs api is down"))
 
 	scanDetails := utils.NewScanDetails(client, &coreconfig.ServerDetails{}, &utils.Git{})
+	scanDetails.PullRequestDetails = vcsclient.PullRequestInfo{
+		Source: vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "feature"},
+		Target: vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"},
+	}
 	target := vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"}
 
 	assert.Equal(t, "master", resolveTargetRef(scanDetails, target, "feature"))
 	assert.Contains(t, output.String(), "vcs api is down")
+}
+
+func TestResolveTargetRefSkipsForkPullRequests(t *testing.T) {
+	originalLogger := log.GetLogger()
+	t.Cleanup(func() { log.SetLogger(originalLogger) })
+	var output bytes.Buffer
+	log.SetLogger(log.NewLogger(log.INFO, &output))
+
+	client := CreateMockVcsClient(t)
+	scanDetails := utils.NewScanDetails(client, &coreconfig.ServerDetails{}, &utils.Git{
+		VcsInfo: vcsclient.VcsInfo{},
+	})
+	scanDetails.PullRequestDetails = vcsclient.PullRequestInfo{
+		Source: vcsclient.BranchInfo{Owner: "contributor", Repository: "repo", Name: "feature"},
+		Target: vcsclient.BranchInfo{Owner: "upstream", Repository: "repo", Name: "master"},
+	}
+	target := vcsclient.BranchInfo{Owner: "upstream", Repository: "repo", Name: "master"}
+
+	assert.Equal(t, "master", resolveTargetRef(scanDetails, target, "feature"))
+	assert.Contains(t, output.String(), "fork")
+}
+
+func TestResolveTargetRefFallsBackOnEmptyMergeBase(t *testing.T) {
+	originalLogger := log.GetLogger()
+	t.Cleanup(func() { log.SetLogger(originalLogger) })
+	var output bytes.Buffer
+	log.SetLogger(log.NewLogger(log.INFO, &output))
+
+	client := CreateMockVcsClient(t)
+	client.EXPECT().GetMergeBase(context.Background(), "owner", "repo", "master", "feature").
+		Return(vcsclient.CommitInfo{}, nil)
+
+	scanDetails := utils.NewScanDetails(client, &coreconfig.ServerDetails{}, &utils.Git{})
+	scanDetails.PullRequestDetails = vcsclient.PullRequestInfo{
+		Source: vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "feature"},
+		Target: vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"},
+	}
+	target := vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"}
+
+	assert.Equal(t, "master", resolveTargetRef(scanDetails, target, "feature"))
+	assert.Contains(t, output.String(), "empty")
 }
