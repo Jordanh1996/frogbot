@@ -1860,3 +1860,44 @@ func TestResolveTargetRefFallsBackOnEmptyMergeBase(t *testing.T) {
 	assert.Equal(t, "master", resolveTargetRef(scanDetails, target, "feature"))
 	assert.Contains(t, output.String(), "empty")
 }
+
+func TestDownloadTargetRetriesAtBranchTipWhenMergeBaseDownloadFails(t *testing.T) {
+	originalLogger := log.GetLogger()
+	t.Cleanup(func() { log.SetLogger(originalLogger) })
+	var output bytes.Buffer
+	log.SetLogger(log.NewLogger(log.INFO, &output))
+
+	const mergeBaseSha = "5d5479f857362d9eb668b6403631e57f0d3d3ba6"
+	var requested []string
+	download := func(_ vcsclient.VcsClient, _, _, ref string) (string, func() error, error) {
+		requested = append(requested, ref)
+		if ref == mergeBaseSha {
+			return "", nil, errors.New("404 Not Found")
+		}
+		dir := t.TempDir()
+		return dir, func() error { return nil }, nil
+	}
+	target := vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"}
+
+	wd, cleanup, err := downloadTargetAtRef(nil, target, mergeBaseSha, download)
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, wd)
+	assert.NotNil(t, cleanup)
+	assert.Equal(t, []string{mergeBaseSha, "master"}, requested, "must retry at the branch tip")
+	assert.Contains(t, output.String(), "scanning the tip of master instead")
+}
+
+func TestDownloadTargetDoesNotRetryWhenAlreadyAtBranchTip(t *testing.T) {
+	var requested []string
+	download := func(_ vcsclient.VcsClient, _, _, ref string) (string, func() error, error) {
+		requested = append(requested, ref)
+		return "", nil, errors.New("network is down")
+	}
+	target := vcsclient.BranchInfo{Owner: "owner", Repository: "repo", Name: "master"}
+
+	_, _, err := downloadTargetAtRef(nil, target, "master", download)
+
+	assert.Error(t, err)
+	assert.Equal(t, []string{"master"}, requested, "no pointless second attempt at the same ref")
+}
